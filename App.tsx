@@ -18,54 +18,59 @@ const App: React.FC = () => {
     }
 
     // 1. Cria um container temporário para o PDF
-    // MUDANÇA CRÍTICA: Em vez de jogar para fora da tela (-10000px), 
-    // colocamos no topo (0,0) mas com z-index negativo para ficar atrás do conteúdo atual.
-    // Isso evita que o html2canvas "corte" o conteúdo achando que não é visível.
+    // Usamos um container 'absoluto' no topo para garantir que o html2canvas capture tudo,
+    // mas com z-index negativo para não atrapalhar o usuário.
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.top = '0';
     container.style.left = '0';
-    container.style.width = '1280px'; // Força largura de Desktop
-    container.style.zIndex = '-9999'; // Esconde atrás do site
+    container.style.width = '1280px'; // Força largura de Desktop (Grid 2 colunas)
+    container.style.zIndex = '-9999'; 
     container.style.backgroundColor = '#00a5c5'; // Garante fundo da marca
-    container.style.visibility = 'visible'; // Garante que é renderizável
     
     // 2. Clona o conteúdo
     const clone = element.cloneNode(true) as HTMLElement;
     
-    // 3. Ajustes de estilo no clone para garantir layout Desktop
-    clone.style.width = '100%'; // Ocupa os 1280px do container
+    // 3. Ajustes de estilo no clone para garantir fidelidade
+    clone.style.width = '1280px'; // Largura fixa
+    clone.style.minHeight = '100vh'; // Altura mínima
+    clone.style.height = 'auto'; // Permite crescer infinitamente
     clone.style.padding = '40px';
-    clone.style.height = 'auto';
-    clone.style.overflow = 'visible';
+    clone.style.boxSizing = 'border-box';
+    clone.style.overflow = 'visible'; // Impede cortes de conteúdo
+    clone.style.backgroundColor = '#00a5c5'; // Reforça cor de fundo no clone
     
     // Remove elementos que não devem aparecer (botões, etc)
     clone.querySelectorAll('.no-print').forEach(el => el.remove());
 
-    // 4. Monta a estrutura no DOM
+    // 4. Monta a estrutura no DOM temporariamente
     container.appendChild(clone);
     document.body.appendChild(container);
 
-    // 5. Configurações do html2pdf
+    // 5. Configurações otimizadas do html2pdf
     const opt = {
-      margin: [10, 10, 10, 10], // margem em mm
+      margin: [10, 10, 10, 10], // Margem (Top, Left, Bottom, Right) em mm
       filename: 'Protocolo_HEC_Cronograma.pdf',
       image: { type: 'jpeg', quality: 0.98 },
+      enableLinks: true, // Garante que links funcionem se houver
+      pagebreak: { 
+        mode: ['avoid-all', 'css', 'legacy'] // Tenta evitar cortar componentes (cards) ao meio
+      },
       html2canvas: { 
-        scale: 2, // Alta resolução
+        scale: 2, // Alta resolução (evita texto borrado)
         useCORS: true, 
-        windowWidth: 1280, // Simula janela de desktop para ativar grid-cols-2
-        scrollY: 0, // Reseta scroll para capturar do topo
+        width: 1280, // Largura do Canvas
+        windowWidth: 1280, // Largura da Janela simulada
+        scrollY: 0, // Garante captura desde o topo
         scrollX: 0,
-        x: 0,
-        y: 0
+        backgroundColor: '#00a5c5' // Cor de fundo do canvas (evita partes brancas)
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     try {
-      // Delay crítico: Espera o navegador renderizar os estilos do clone antes de capturar
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Pequeno delay para garantir que estilos/fontes renderizem no clone
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       // @ts-ignore
       await window.html2pdf().set(opt).from(clone).save();
@@ -136,7 +141,7 @@ const App: React.FC = () => {
           <main className="space-y-12 md:space-y-16">
             
             {/* General Guidelines Section */}
-            <section className="animate-fade-in-up">
+            <section className="animate-fade-in-up break-inside-avoid">
               <TextCard data={GENERAL_GUIDELINES} variant="primary" />
             </section>
 
@@ -156,13 +161,13 @@ const App: React.FC = () => {
             </section>
 
             {/* Final Observation Section */}
-            <section>
+            <section className="break-inside-avoid">
               <TextCard data={FINAL_OBSERVATION} variant="black" />
             </section>
 
           </main>
 
-          <footer className="mt-16 md:mt-24 text-center text-black/60 font-medium text-xs md:text-sm border-t border-black/10 pt-8 pb-8">
+          <footer className="mt-16 md:mt-24 text-center text-black/60 font-medium text-xs md:text-sm border-t border-black/10 pt-8 pb-8 break-inside-avoid">
             <div className="flex flex-col items-center gap-2">
               <p className="flex items-center justify-center gap-2">
                 <BookOpen className="w-4 h-4" />

@@ -8,7 +8,7 @@ interface PhaseCardProps {
 
 const PhaseCard: React.FC<PhaseCardProps> = ({ phase }) => {
   return (
-    <div className="relative mt-8 mb-4 h-full print-break-inside-avoid">
+    <div className="relative mt-8 mb-4 h-full break-inside-avoid">
       {/* Header Pill */}
       <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-10 w-[90%] sm:w-auto max-w-full">
         <div className="bg-black text-brand-primary rounded-full py-2 px-4 sm:px-6 shadow-xl flex items-center justify-center text-center border-2 border-brand-primary/20 min-w-max sm:min-w-0">

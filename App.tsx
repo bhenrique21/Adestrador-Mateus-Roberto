@@ -37,7 +37,8 @@ const App: React.FC = () => {
     // 3. Ajustes de Estilo no Clone (Para o PDF)
     clone.style.width = `${desktopWidth}px`;
     clone.style.minHeight = '100vh';
-    clone.style.height = 'auto';
+    // Importante: Deixar auto inicialmente para o conteúdo se acomodar
+    clone.style.height = 'auto'; 
     clone.style.padding = '40px'; // Margem interna para beleza
     clone.style.margin = '0 auto'; // Centralização
     clone.style.boxSizing = 'border-box';
@@ -45,9 +46,7 @@ const App: React.FC = () => {
     clone.style.backgroundColor = '#00a5c5'; 
     
     // Centralização do conteúdo interno
-    // Removemos a restrição de max-width original para usar a largura total do PDF se necessário,
-    // ou mantemos centralizado.
-    const internalContainer = clone; // O clone já é o wrapper
+    const internalContainer = clone; 
     internalContainer.style.display = 'flex';
     internalContainer.style.flexDirection = 'column';
     internalContainer.style.alignItems = 'center';
@@ -66,12 +65,11 @@ const App: React.FC = () => {
     grids.forEach(grid => {
         grid.classList.remove('grid-cols-1');
         grid.classList.add('grid-cols-2');
-        // Garante largura total para o grid ficar bonito
         (grid as HTMLElement).style.width = '100%';
         (grid as HTMLElement).style.maxWidth = '1200px'; 
     });
 
-    // Ajuste do Header para não ficar "espremido"
+    // Ajuste do Header
     const header = clone.querySelector('header');
     if (header) {
         header.style.width = '100%';
@@ -91,12 +89,17 @@ const App: React.FC = () => {
     // 5. Delay para garantir carregamento de fontes/ícones
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // 6. CÁLCULO DE DIMENSÕES (CRÍTICO PARA NÃO CORTAR)
-    // Medimos a altura total necessária
-    const contentHeight = clone.scrollHeight + 50; // +50px de buffer de segurança
+    // 6. CÁLCULO DE DIMENSÕES (CRÍTICO PARA NÃO CORTAR NO MOBILE)
+    // Aumentamos o buffer para garantir que o rodapé não fique no limite
+    const scrollHeight = clone.scrollHeight;
+    const contentHeight = scrollHeight + 150; 
     
+    // FIX MOBILE: Forçamos a altura explicita no container e no clone.
+    // Isso impede que o navegador mobile "pense" que a página acabou na altura da viewport do celular.
+    container.style.height = `${contentHeight}px`;
+    clone.style.height = `${contentHeight}px`;
+
     // Convertemos pixels para points (pt) para o jsPDF (1px ≈ 0.75pt)
-    // Isso cria um PDF com o tamanho EXATO do conteúdo, sem páginas extras ou cortes.
     const pdfWidthPt = desktopWidth * 0.75;
     const pdfHeightPt = contentHeight * 0.75;
 
@@ -107,20 +110,20 @@ const App: React.FC = () => {
       image: { type: 'jpeg', quality: 0.98 },
       enableLinks: true,
       html2canvas: { 
-        scale: 2, // 2x para nitidez (Retina quality)
+        scale: 2, 
         useCORS: true, 
         width: desktopWidth,
-        height: contentHeight, // Altura exata do canvas
+        height: contentHeight, // Altura exata calculada
         windowWidth: desktopWidth,
-        windowHeight: contentHeight, // CRÍTICO: Define a altura da janela virtual para evitar crop
+        windowHeight: contentHeight, // CRÍTICO: Altura da janela virtual igual ao conteúdo
         scrollY: 0,
         backgroundColor: '#00a5c5',
         x: 0,
         y: 0
       },
       jsPDF: { 
-        unit: 'pt', // Usamos pontos para controle preciso
-        format: [pdfWidthPt, pdfHeightPt], // Tamanho personalizado da página
+        unit: 'pt',
+        format: [pdfWidthPt, pdfHeightPt],
         orientation: 'portrait' 
       }
     };
@@ -160,8 +163,9 @@ const App: React.FC = () => {
              </div>
              
              <div className="flex flex-col items-center gap-4 relative z-10 mt-6 md:mt-0 w-full md:w-auto">
-               <div className="hidden md:flex items-center justify-center w-20 h-20 rounded-full bg-brand-primary text-black shadow-lg shadow-brand-primary/20 transform rotate-12 transition-transform hover:rotate-0">
-                 <PawPrint className="w-10 h-10" />
+               {/* Paw Icon (Restored) */}
+               <div className="hidden md:flex items-center justify-center w-20 h-20 rounded-full bg-brand-primary shadow-[0_0_20px_rgba(0,165,197,0.4)] mb-2">
+                  <PawPrint className="w-10 h-10 text-black" strokeWidth={2.5} />
                </div>
                
                <button 

@@ -16,81 +16,111 @@ const App: React.FC = () => {
       return;
     }
 
-    // Aumentamos a largura para 1440px (Desktop Wide).
-    // Isso faz com que, ao ajustar ao papel A4 (210mm), o conteúdo pareça "menor" (zoom out),
-    // atendendo ao pedido de "diminuir o tamanho" e fazendo caber mais conteúdo verticalmente.
-    const desktopWidth = 1440; 
+    // CONFIGURAÇÃO DE LARGURA
+    // 1280px é uma largura padrão segura para Desktop que ativa o Grid de 2 colunas
+    // e mantém a proporção agradável sem deixar o texto pequeno demais.
+    const desktopWidth = 1280; 
 
-    // 1. Container temporário fora da visão
+    // 1. Container temporário para renderização off-screen
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.top = '0';
     container.style.left = '0';
     container.style.width = `${desktopWidth}px`;
     container.style.zIndex = '-9999'; 
+    // Garante que o fundo do PDF seja da cor da marca
     container.style.backgroundColor = '#00a5c5'; 
     
-    // 2. Clone do elemento
+    // 2. Clone do conteúdo
     const clone = element.cloneNode(true) as HTMLElement;
     
-    // 3. Estilos do clone para garantir renderização perfeita
+    // 3. Ajustes de Estilo no Clone (Para o PDF)
     clone.style.width = `${desktopWidth}px`;
-    clone.style.minHeight = 'fit-content';
-    clone.style.height = 'auto'; 
-    clone.style.padding = '40px'; // Padding generoso
+    clone.style.minHeight = '100vh';
+    clone.style.height = 'auto';
+    clone.style.padding = '40px'; // Margem interna para beleza
+    clone.style.margin = '0 auto'; // Centralização
     clone.style.boxSizing = 'border-box';
-    clone.style.overflow = 'visible';
+    clone.style.overflow = 'visible'; // Impede cortes de overflow
     clone.style.backgroundColor = '#00a5c5'; 
     
-    // Remove elementos indesejados
+    // Centralização do conteúdo interno
+    // Removemos a restrição de max-width original para usar a largura total do PDF se necessário,
+    // ou mantemos centralizado.
+    const internalContainer = clone; // O clone já é o wrapper
+    internalContainer.style.display = 'flex';
+    internalContainer.style.flexDirection = 'column';
+    internalContainer.style.alignItems = 'center';
+
+    // Limpeza de elementos interativos e fixes de layout
     clone.querySelectorAll('.no-print').forEach(el => el.remove());
 
-    // Ajusta Header (remove sticky para não bugar no PDF)
+    // Remove classes sticky/fixed que quebram em PDFs longos
     clone.querySelectorAll('.sticky').forEach(el => {
       el.classList.remove('sticky', 'top-0', 'z-50', 'backdrop-blur-sm');
       el.classList.add('relative');
     });
 
-    // Força Grid de 2 colunas
+    // Força layout de 2 colunas (Grid)
     const grids = clone.querySelectorAll('.lg\\:grid-cols-2');
     grids.forEach(grid => {
         grid.classList.remove('grid-cols-1');
         grid.classList.add('grid-cols-2');
+        // Garante largura total para o grid ficar bonito
+        (grid as HTMLElement).style.width = '100%';
+        (grid as HTMLElement).style.maxWidth = '1200px'; 
     });
 
-    // 4. Adiciona ao DOM
+    // Ajuste do Header para não ficar "espremido"
+    const header = clone.querySelector('header');
+    if (header) {
+        header.style.width = '100%';
+        header.style.maxWidth = '1200px';
+    }
+    
+    // Ajuste do Footer
+    const footer = clone.querySelector('footer');
+    if (footer) {
+        footer.style.width = '100%';
+    }
+
+    // 4. Adiciona ao DOM invisível
     container.appendChild(clone);
     document.body.appendChild(container);
 
-    // 5. IMPORTANTE: Aguarda renderização para medir altura correta
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // 5. Delay para garantir carregamento de fontes/ícones
+    await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Mede a altura total do conteúdo clonado + buffer de segurança
-    const contentHeight = clone.scrollHeight + 100; 
+    // 6. CÁLCULO DE DIMENSÕES (CRÍTICO PARA NÃO CORTAR)
+    // Medimos a altura total necessária
+    const contentHeight = clone.scrollHeight + 50; // +50px de buffer de segurança
     
-    // Calcula proporção para manter em UMA página
-    const pdfWidth = 210; // Largura A4 padrão (mm)
-    const pdfHeight = (contentHeight * pdfWidth) / desktopWidth;
+    // Convertemos pixels para points (pt) para o jsPDF (1px ≈ 0.75pt)
+    // Isso cria um PDF com o tamanho EXATO do conteúdo, sem páginas extras ou cortes.
+    const pdfWidthPt = desktopWidth * 0.75;
+    const pdfHeightPt = contentHeight * 0.75;
 
-    // 6. Configurações do PDF
+    // 7. Configurações da biblioteca
     const opt = {
       margin: 0,
       filename: 'Protocolo_HEC_Completo.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       enableLinks: true,
       html2canvas: { 
-        scale: 2, // Boa resolução
+        scale: 2, // 2x para nitidez (Retina quality)
         useCORS: true, 
         width: desktopWidth,
-        height: contentHeight, // Altura exata capturada
+        height: contentHeight, // Altura exata do canvas
         windowWidth: desktopWidth,
-        windowHeight: contentHeight, // Garante que o canvas não corte visualmente
+        windowHeight: contentHeight, // CRÍTICO: Define a altura da janela virtual para evitar crop
         scrollY: 0,
-        backgroundColor: '#00a5c5'
+        backgroundColor: '#00a5c5',
+        x: 0,
+        y: 0
       },
       jsPDF: { 
-        unit: 'mm', 
-        format: [pdfWidth, pdfHeight], // Página Única Personalizada
+        unit: 'pt', // Usamos pontos para controle preciso
+        format: [pdfWidthPt, pdfHeightPt], // Tamanho personalizado da página
         orientation: 'portrait' 
       }
     };
@@ -111,11 +141,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-brand-primary pb-10 md:pb-20 font-sans selection:bg-black selection:text-brand-primary">
-      <div id="content-to-print" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div id="content-to-print" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
         
         {/* Header */}
-        <header className="pt-6 md:pt-8 pb-8 md:pb-10 sticky top-0 z-50 bg-brand-primary/95 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-black text-brand-primary rounded-[2rem] px-6 py-6 md:px-8 md:py-8 shadow-2xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden border-b-4 border-brand-darker">
+        <header className="w-full pt-6 md:pt-8 pb-8 md:pb-10 sticky top-0 z-50 bg-brand-primary/95 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-black text-brand-primary rounded-[2rem] px-6 py-6 md:px-8 md:py-8 shadow-2xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden border-b-4 border-brand-darker w-full">
              <div className="absolute -top-10 -right-10 w-48 h-48 bg-brand-primary/20 rounded-full blur-3xl"></div>
              <div className="absolute top-0 left-0 w-full h-full bg-pattern-cubes opacity-10"></div>
              
@@ -156,33 +186,33 @@ const App: React.FC = () => {
         </header>
 
         {/* Main Content */}
-        <main className="space-y-12 md:space-y-16">
+        <main className="space-y-12 md:space-y-16 w-full">
           
-          <section className="animate-fade-in-up break-inside-avoid">
+          <section className="animate-fade-in-up break-inside-avoid w-full">
             <TextCard data={GENERAL_GUIDELINES} variant="primary" />
           </section>
 
-          <section>
+          <section className="w-full">
             <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 opacity-60 px-2">
                 <ScrollText className="w-5 h-5 md:w-6 md:h-6 text-black" />
                 <h2 className="text-lg md:text-2xl font-black uppercase text-black tracking-widest">Fases do Protocolo</h2>
                 <div className="h-1 bg-black flex-1 rounded-full"></div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-12 md:gap-y-16">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-12 md:gap-y-16 w-full">
                 {PHASES.map((phase) => (
                   <PhaseCard key={phase.id} phase={phase} />
                 ))}
             </div>
           </section>
 
-          <section className="break-inside-avoid">
+          <section className="break-inside-avoid w-full">
             <TextCard data={FINAL_OBSERVATION} variant="black" />
           </section>
 
         </main>
 
-        <footer className="mt-16 md:mt-24 text-center text-black/60 font-medium text-xs md:text-sm border-t border-black/10 pt-8 pb-8 break-inside-avoid">
+        <footer className="mt-16 md:mt-24 text-center text-black/60 font-medium text-xs md:text-sm border-t border-black/10 pt-8 pb-8 break-inside-avoid w-full">
           <div className="flex flex-col items-center gap-2">
             <p className="flex items-center justify-center gap-2">
               <BookOpen className="w-4 h-4" />

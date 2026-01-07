@@ -17,8 +17,6 @@ const App: React.FC = () => {
     }
 
     // CONFIGURAÇÃO DE LARGURA
-    // 1280px é uma largura padrão segura para Desktop que ativa o Grid de 2 colunas
-    // e mantém a proporção agradável sem deixar o texto pequeno demais.
     const desktopWidth = 1280; 
 
     // 1. Container temporário para renderização off-screen
@@ -28,21 +26,19 @@ const App: React.FC = () => {
     container.style.left = '0';
     container.style.width = `${desktopWidth}px`;
     container.style.zIndex = '-9999'; 
-    // Garante que o fundo do PDF seja da cor da marca
     container.style.backgroundColor = '#00a5c5'; 
     
     // 2. Clone do conteúdo
     const clone = element.cloneNode(true) as HTMLElement;
     
-    // 3. Ajustes de Estilo no Clone (Para o PDF)
+    // 3. Ajustes de Estilo no Clone
     clone.style.width = `${desktopWidth}px`;
     clone.style.minHeight = '100vh';
-    // Importante: Deixar auto inicialmente para o conteúdo se acomodar
     clone.style.height = 'auto'; 
-    clone.style.padding = '40px'; // Margem interna para beleza
-    clone.style.margin = '0 auto'; // Centralização
+    clone.style.padding = '40px'; 
+    clone.style.margin = '0 auto'; 
     clone.style.boxSizing = 'border-box';
-    clone.style.overflow = 'visible'; // Impede cortes de overflow
+    clone.style.overflow = 'visible'; 
     clone.style.backgroundColor = '#00a5c5'; 
     
     // Centralização do conteúdo interno
@@ -54,7 +50,7 @@ const App: React.FC = () => {
     // Limpeza de elementos interativos e fixes de layout
     clone.querySelectorAll('.no-print').forEach(el => el.remove());
 
-    // Remove classes sticky/fixed que quebram em PDFs longos
+    // Remove classes sticky/fixed
     clone.querySelectorAll('.sticky').forEach(el => {
       el.classList.remove('sticky', 'top-0', 'z-50', 'backdrop-blur-sm');
       el.classList.add('relative');
@@ -82,26 +78,33 @@ const App: React.FC = () => {
         footer.style.width = '100%';
     }
 
+    // --- FIX MOBILE CUTOFF ---
+    // Adicionamos um elemento físico no final do clone para servir de buffer.
+    // Se o renderizador do celular cortar o final, cortará apenas este bloco vazio.
+    const spacer = document.createElement('div');
+    spacer.style.height = '200px'; // 200px de segurança extra
+    spacer.style.width = '100%';
+    spacer.style.backgroundColor = '#00a5c5'; // Mesma cor do fundo para ficar invisível
+    spacer.style.flexShrink = '0';
+    clone.appendChild(spacer);
+
     // 4. Adiciona ao DOM invisível
     container.appendChild(clone);
     document.body.appendChild(container);
 
-    // 5. Delay para garantir carregamento de fontes/ícones
+    // 5. Delay para garantir carregamento
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // 6. CÁLCULO DE DIMENSÕES (CRÍTICO PARA NÃO CORTAR NO MOBILE)
-    // Aumentamos o buffer para garantir que o rodapé não fique no limite
+    // 6. CÁLCULO DE DIMENSÕES
+    // Usamos o scrollHeight do container que já inclui o nosso spacer gigante
     const scrollHeight = clone.scrollHeight;
-    const contentHeight = scrollHeight + 150; 
     
-    // FIX MOBILE: Forçamos a altura explicita no container e no clone.
-    // Isso impede que o navegador mobile "pense" que a página acabou na altura da viewport do celular.
-    container.style.height = `${contentHeight}px`;
-    clone.style.height = `${contentHeight}px`;
+    // Definimos a altura explicita para evitar que o html2canvas corte
+    container.style.height = `${scrollHeight}px`;
+    clone.style.height = `${scrollHeight}px`;
 
-    // Convertemos pixels para points (pt) para o jsPDF (1px ≈ 0.75pt)
     const pdfWidthPt = desktopWidth * 0.75;
-    const pdfHeightPt = contentHeight * 0.75;
+    const pdfHeightPt = scrollHeight * 0.75;
 
     // 7. Configurações da biblioteca
     const opt = {
@@ -113,9 +116,9 @@ const App: React.FC = () => {
         scale: 2, 
         useCORS: true, 
         width: desktopWidth,
-        height: contentHeight, // Altura exata calculada
+        height: scrollHeight, // Altura exata calculada com buffer
         windowWidth: desktopWidth,
-        windowHeight: contentHeight, // CRÍTICO: Altura da janela virtual igual ao conteúdo
+        windowHeight: scrollHeight, // CRÍTICO: Janela virtual do tamanho total
         scrollY: 0,
         backgroundColor: '#00a5c5',
         x: 0,

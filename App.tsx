@@ -16,10 +16,12 @@ const App: React.FC = () => {
       return;
     }
 
-    // Largura fixa para Desktop
-    const desktopWidth = 1124; 
+    // Aumentamos a largura para 1440px (Desktop Wide).
+    // Isso faz com que, ao ajustar ao papel A4 (210mm), o conteúdo pareça "menor" (zoom out),
+    // atendendo ao pedido de "diminuir o tamanho" e fazendo caber mais conteúdo verticalmente.
+    const desktopWidth = 1440; 
 
-    // 1. Container temporário
+    // 1. Container temporário fora da visão
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.top = '0';
@@ -28,77 +30,72 @@ const App: React.FC = () => {
     container.style.zIndex = '-9999'; 
     container.style.backgroundColor = '#00a5c5'; 
     
-    // 2. Clone
+    // 2. Clone do elemento
     const clone = element.cloneNode(true) as HTMLElement;
     
-    // 3. Estilos do clone
+    // 3. Estilos do clone para garantir renderização perfeita
     clone.style.width = `${desktopWidth}px`;
-    clone.style.minHeight = '100vh';
-    clone.style.height = 'auto'; // Altura automática para medir depois
-    clone.style.padding = '20px';
+    clone.style.minHeight = 'fit-content';
+    clone.style.height = 'auto'; 
+    clone.style.padding = '40px'; // Padding generoso
     clone.style.boxSizing = 'border-box';
     clone.style.overflow = 'visible';
     clone.style.backgroundColor = '#00a5c5'; 
     
-    // Manipulações
+    // Remove elementos indesejados
     clone.querySelectorAll('.no-print').forEach(el => el.remove());
 
+    // Ajusta Header (remove sticky para não bugar no PDF)
     clone.querySelectorAll('.sticky').forEach(el => {
       el.classList.remove('sticky', 'top-0', 'z-50', 'backdrop-blur-sm');
       el.classList.add('relative');
     });
 
+    // Força Grid de 2 colunas
     const grids = clone.querySelectorAll('.lg\\:grid-cols-2');
     grids.forEach(grid => {
         grid.classList.remove('grid-cols-1');
         grid.classList.add('grid-cols-2');
     });
 
-    const header = clone.querySelector('header');
-    if (header) {
-        header.style.paddingTop = '20px';
-        header.style.paddingBottom = '20px';
-    }
-
-    // 4. Adiciona ao DOM para medir
+    // 4. Adiciona ao DOM
     container.appendChild(clone);
     document.body.appendChild(container);
 
-    // --- CÁLCULO DINÂMICO DE ALTURA ---
-    // Medimos a altura real do conteúdo renderizado
-    const contentHeight = clone.scrollHeight;
+    // 5. IMPORTANTE: Aguarda renderização para medir altura correta
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Mede a altura total do conteúdo clonado + buffer de segurança
+    const contentHeight = clone.scrollHeight + 100; 
     
-    // Calculamos a proporção para o PDF
-    // Usamos largura A4 (210mm) como base
-    const pdfWidth = 210; 
+    // Calcula proporção para manter em UMA página
+    const pdfWidth = 210; // Largura A4 padrão (mm)
     const pdfHeight = (contentHeight * pdfWidth) / desktopWidth;
 
-    // 5. Configurações
+    // 6. Configurações do PDF
     const opt = {
       margin: 0,
-      filename: 'Protocolo_HEC_Cronograma.pdf',
+      filename: 'Protocolo_HEC_Completo.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       enableLinks: true,
       html2canvas: { 
-        scale: 2, 
+        scale: 2, // Boa resolução
         useCORS: true, 
         width: desktopWidth,
-        height: contentHeight, // Altura explícita
+        height: contentHeight, // Altura exata capturada
         windowWidth: desktopWidth,
-        windowHeight: contentHeight, // Altura da janela explícita
+        windowHeight: contentHeight, // Garante que o canvas não corte visualmente
         scrollY: 0,
         backgroundColor: '#00a5c5'
       },
       jsPDF: { 
         unit: 'mm', 
-        format: [pdfWidth, pdfHeight], // Página única com tamanho personalizado
+        format: [pdfWidth, pdfHeight], // Página Única Personalizada
         orientation: 'portrait' 
       }
     };
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       // @ts-ignore
       await window.html2pdf().set(opt).from(clone).save();
     } catch (error) {

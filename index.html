@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="h-full">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cronograma Método Cão Companheiro</title>
     <meta name="description" content="Cronograma de treinamento canino" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -31,49 +32,26 @@
         font-family: 'Inter', sans-serif;
       }
       
-      /* Print specific styles for PDF generation */
-      @media print {
-        @page {
-          margin: 10mm;
-          size: auto;
-        }
-        
-        body {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-          background-color: #00a5c5 !important;
-        }
-
-        /* Utility to hide elements like buttons during print */
-        .no-print {
-          display: none !important;
-        }
-
-        /* Utility to prevent cutting cards in half */
-        .print-break-inside-avoid {
-          break-inside: avoid !important;
-          page-break-inside: avoid !important;
-        }
-
-        /* Remove sticky header behavior for print to avoid overlap */
-        header {
-          position: relative !important;
-          top: 0 !important;
-        }
+      /* Background pattern purely in CSS to avoid external image loading issues */
+      .bg-pattern-cubes {
+        background-color: transparent;
+        background-image: radial-gradient(#007A91 1px, transparent 1px);
+        background-size: 20px 20px;
+        opacity: 0.1;
       }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react/": "https://esm.sh/react@^18.2.0/",
+    "react": "https://esm.sh/react@^18.2.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.294.0",
+    "react-dom/": "https://esm.sh/react-dom@^18.2.0/"
   }
 }
 </script>
 </head>
-  <body class="bg-brand-primary">
-    <div id="root"></div>
+  <body class="bg-brand-primary h-full">
+    <div id="root" class="h-full"></div>
   </body>
 </html>

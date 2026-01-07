@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PHASES, GENERAL_GUIDELINES, FINAL_OBSERVATION } from './constants';
 import PhaseCard from './components/PhaseCard';
 import TextCard from './components/TextCard';
-import { PawPrint, BookOpen, ScrollText, Download, Loader2 } from 'lucide-react';
+import { BookOpen, ScrollText, Download, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -160,9 +160,12 @@ const App: React.FC = () => {
              </div>
              
              <div className="flex flex-col items-center gap-4 relative z-10 mt-6 md:mt-0 w-full md:w-auto">
-               <div className="hidden md:flex items-center justify-center w-20 h-20 rounded-full bg-brand-primary text-black shadow-lg shadow-brand-primary/20 transform rotate-12 transition-transform hover:rotate-0">
-                 <PawPrint className="w-10 h-10" />
-               </div>
+               {/* User Profile Photo */}
+               <img 
+                 src="foto-perfil.jpg" 
+                 alt="Mateus e seu cão"
+                 className="hidden md:block w-24 h-24 rounded-full object-cover border-4 border-brand-primary shadow-xl shadow-brand-primary/30 transform rotate-12 transition-transform hover:rotate-0"
+               />
                
                <button 
                  onClick={handleDownloadPDF}

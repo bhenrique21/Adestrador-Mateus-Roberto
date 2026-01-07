@@ -10,57 +10,73 @@ const App: React.FC = () => {
   const handleDownloadPDF = async () => {
     setIsGenerating(true);
     
-    // Get the element to print
+    // Elemento original
     const element = document.getElementById('content-to-print');
-    if (!element) return;
+    if (!element) {
+      setIsGenerating(false);
+      return;
+    }
 
-    // CONFIGURAÇÃO DO PDF
-    // Clonamos o elemento para manipular sem afetar a tela do usuário
+    // 1. Cria um container temporário para o PDF
+    // MUDANÇA CRÍTICA: Em vez de jogar para fora da tela (-10000px), 
+    // colocamos no topo (0,0) mas com z-index negativo para ficar atrás do conteúdo atual.
+    // Isso evita que o html2canvas "corte" o conteúdo achando que não é visível.
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '1280px'; // Força largura de Desktop
+    container.style.zIndex = '-9999'; // Esconde atrás do site
+    container.style.backgroundColor = '#00a5c5'; // Garante fundo da marca
+    container.style.visibility = 'visible'; // Garante que é renderizável
+    
+    // 2. Clona o conteúdo
     const clone = element.cloneNode(true) as HTMLElement;
     
-    // Forçamos uma largura fixa no clone para simular um Desktop.
-    // Isso garante que o conteúdo dentro dele obedeça o layout largo (grid-cols-2).
-    clone.style.width = '1200px'; 
+    // 3. Ajustes de estilo no clone para garantir layout Desktop
+    clone.style.width = '100%'; // Ocupa os 1280px do container
     clone.style.padding = '40px';
-    clone.style.background = '#00a5c5';
-    // Importante: forçar a altura para 'auto' para o PDF capturar tudo
-    clone.style.height = 'auto'; 
+    clone.style.height = 'auto';
     clone.style.overflow = 'visible';
     
-    // Removemos elementos que não devem sair no PDF
-    const noPrintElements = clone.querySelectorAll('.no-print');
-    noPrintElements.forEach(el => el.remove());
+    // Remove elementos que não devem aparecer (botões, etc)
+    clone.querySelectorAll('.no-print').forEach(el => el.remove());
 
-    // Posicionamos fora da viewport para não piscar na tela
-    clone.style.position = 'fixed';
-    clone.style.top = '-10000px';
-    clone.style.left = '-10000px';
-    
-    document.body.appendChild(clone);
+    // 4. Monta a estrutura no DOM
+    container.appendChild(clone);
+    document.body.appendChild(container);
 
+    // 5. Configurações do html2pdf
     const opt = {
-      margin: [10, 10, 10, 10],
+      margin: [10, 10, 10, 10], // margem em mm
       filename: 'Protocolo_HEC_Cronograma.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { 
-        scale: 2, 
+        scale: 2, // Alta resolução
         useCORS: true, 
-        scrollY: 0,
-        // CRUCIAL: Diz ao html2canvas para renderizar como se a janela tivesse 1280px de largura.
-        // Isso ativa os breakpoints do Tailwind (lg:grid-cols-2) mesmo rodando no celular.
-        windowWidth: 1280 
+        windowWidth: 1280, // Simula janela de desktop para ativar grid-cols-2
+        scrollY: 0, // Reseta scroll para capturar do topo
+        scrollX: 0,
+        x: 0,
+        y: 0
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     try {
+      // Delay crítico: Espera o navegador renderizar os estilos do clone antes de capturar
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // @ts-ignore
       await window.html2pdf().set(opt).from(clone).save();
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       alert("Houve um erro ao gerar o PDF. Tente novamente.");
     } finally {
-      document.body.removeChild(clone);
+      // Limpeza
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
       setIsGenerating(false);
     }
   };
@@ -147,10 +163,15 @@ const App: React.FC = () => {
           </main>
 
           <footer className="mt-16 md:mt-24 text-center text-black/60 font-medium text-xs md:text-sm border-t border-black/10 pt-8 pb-8">
-            <p className="flex items-center justify-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              © {new Date().getFullYear()} Protocolo H.E.C. - Homeostase Emocional Canina
-            </p>
+            <div className="flex flex-col items-center gap-2">
+              <p className="flex items-center justify-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                © {new Date().getFullYear()} Protocolo H.E.C. | Homeostase Emocional Canina
+              </p>
+              <p>
+                Conteúdo desenvolvido por Adestrador Mateus Roberto. Direitos Reservados.
+              </p>
+            </div>
           </footer>
         </div>
 

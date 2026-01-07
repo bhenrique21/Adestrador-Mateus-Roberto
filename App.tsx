@@ -10,96 +10,93 @@ const App: React.FC = () => {
   const handleDownloadPDF = async () => {
     setIsGenerating(true);
     
-    // Elemento original (agora engloba todo o conteúdo principal)
     const element = document.getElementById('content-to-print');
     if (!element) {
       setIsGenerating(false);
       return;
     }
 
-    // Configuração de largura para simular Desktop
-    // 1124px garante que o breakpoint 'lg' (1024px) seja ativado
-    // e se ajusta razoavelmente bem em uma página A4
+    // Largura fixa para Desktop
     const desktopWidth = 1124; 
 
-    // 1. Cria um container temporário
+    // 1. Container temporário
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.top = '0';
     container.style.left = '0';
     container.style.width = `${desktopWidth}px`;
     container.style.zIndex = '-9999'; 
-    container.style.backgroundColor = '#00a5c5'; // Fundo da marca
+    container.style.backgroundColor = '#00a5c5'; 
     
-    // 2. Clona o conteúdo
+    // 2. Clone
     const clone = element.cloneNode(true) as HTMLElement;
     
-    // 3. Ajustes de estilo no clone para garantir fidelidade visual
+    // 3. Estilos do clone
     clone.style.width = `${desktopWidth}px`;
     clone.style.minHeight = '100vh';
-    clone.style.height = 'auto';
-    clone.style.padding = '20px'; // Padding interno reduzido para o PDF
+    clone.style.height = 'auto'; // Altura automática para medir depois
+    clone.style.padding = '20px';
     clone.style.boxSizing = 'border-box';
     clone.style.overflow = 'visible';
     clone.style.backgroundColor = '#00a5c5'; 
     
-    // --- MANIPULAÇÕES DO DOM DO CLONE ---
-    
-    // Remove botões e elementos 'no-print'
+    // Manipulações
     clone.querySelectorAll('.no-print').forEach(el => el.remove());
 
-    // Remove comportamento 'sticky' do header para não flutuar no PDF
     clone.querySelectorAll('.sticky').forEach(el => {
       el.classList.remove('sticky', 'top-0', 'z-50', 'backdrop-blur-sm');
       el.classList.add('relative');
     });
 
-    // FORÇA O LAYOUT DE 2 COLUNAS (GRID)
-    // Encontra elementos que usam lg:grid-cols-2 e força grid-cols-2
-    // Isso garante que o PDF tenha 2 colunas mesmo se o canvas bugar a media query
     const grids = clone.querySelectorAll('.lg\\:grid-cols-2');
     grids.forEach(grid => {
         grid.classList.remove('grid-cols-1');
         grid.classList.add('grid-cols-2');
     });
 
-    // Ajuste de margens do header clonado para caber melhor
     const header = clone.querySelector('header');
     if (header) {
         header.style.paddingTop = '20px';
         header.style.paddingBottom = '20px';
     }
 
-    // 4. Monta a estrutura no DOM
+    // 4. Adiciona ao DOM para medir
     container.appendChild(clone);
     document.body.appendChild(container);
 
-    // 5. Configurações html2pdf
+    // --- CÁLCULO DINÂMICO DE ALTURA ---
+    // Medimos a altura real do conteúdo renderizado
+    const contentHeight = clone.scrollHeight;
+    
+    // Calculamos a proporção para o PDF
+    // Usamos largura A4 (210mm) como base
+    const pdfWidth = 210; 
+    const pdfHeight = (contentHeight * pdfWidth) / desktopWidth;
+
+    // 5. Configurações
     const opt = {
-      margin: [5, 5, 5, 5], // Margens pequenas para aproveitar o papel
+      margin: 0,
       filename: 'Protocolo_HEC_Cronograma.pdf',
-      image: { type: 'jpeg', quality: 1 },
+      image: { type: 'jpeg', quality: 0.98 },
       enableLinks: true,
-      pagebreak: { 
-        mode: ['avoid-all', 'css', 'legacy']
-      },
       html2canvas: { 
-        scale: 2, // Resolução 2x para nitidez
+        scale: 2, 
         useCORS: true, 
         width: desktopWidth,
-        windowWidth: desktopWidth, // Simula janela desktop
+        height: contentHeight, // Altura explícita
+        windowWidth: desktopWidth,
+        windowHeight: contentHeight, // Altura da janela explícita
         scrollY: 0,
         backgroundColor: '#00a5c5'
       },
       jsPDF: { 
         unit: 'mm', 
-        format: 'a4', 
+        format: [pdfWidth, pdfHeight], // Página única com tamanho personalizado
         orientation: 'portrait' 
       }
     };
 
     try {
-      // Delay para renderização de fontes e estilos
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // @ts-ignore
@@ -117,16 +114,11 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-brand-primary pb-10 md:pb-20 font-sans selection:bg-black selection:text-brand-primary">
-      {/* 
-         ID MOVIDO PARA O CONTAINER PAI 
-         Isso garante que o Header seja incluído no PDF
-      */}
       <div id="content-to-print" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
         <header className="pt-6 md:pt-8 pb-8 md:pb-10 sticky top-0 z-50 bg-brand-primary/95 backdrop-blur-sm transition-all duration-300">
           <div className="bg-black text-brand-primary rounded-[2rem] px-6 py-6 md:px-8 md:py-8 shadow-2xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden border-b-4 border-brand-darker">
-             {/* Decorative background element for header */}
              <div className="absolute -top-10 -right-10 w-48 h-48 bg-brand-primary/20 rounded-full blur-3xl"></div>
              <div className="absolute top-0 left-0 w-full h-full bg-pattern-cubes opacity-10"></div>
              
@@ -145,7 +137,6 @@ const App: React.FC = () => {
                  <PawPrint className="w-10 h-10" />
                </div>
                
-               {/* PDF Button */}
                <button 
                  onClick={handleDownloadPDF}
                  disabled={isGenerating}
@@ -170,12 +161,10 @@ const App: React.FC = () => {
         {/* Main Content */}
         <main className="space-y-12 md:space-y-16">
           
-          {/* General Guidelines Section */}
           <section className="animate-fade-in-up break-inside-avoid">
             <TextCard data={GENERAL_GUIDELINES} variant="primary" />
           </section>
 
-          {/* Phases Grid */}
           <section>
             <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 opacity-60 px-2">
                 <ScrollText className="w-5 h-5 md:w-6 md:h-6 text-black" />
@@ -190,7 +179,6 @@ const App: React.FC = () => {
             </div>
           </section>
 
-          {/* Final Observation Section */}
           <section className="break-inside-avoid">
             <TextCard data={FINAL_OBSERVATION} variant="black" />
           </section>

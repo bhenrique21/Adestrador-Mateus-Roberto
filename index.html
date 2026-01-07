@@ -30,6 +30,7 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
+        background-color: #00a5c5; /* Fallback color prevents white flash */
       }
       
       /* Background pattern purely in CSS to avoid external image loading issues */
@@ -51,7 +52,9 @@
 }
 </script>
 </head>
-  <body class="bg-brand-primary h-full">
+  <body class="bg-brand-primary h-full text-brand-darker">
     <div id="root" class="h-full"></div>
+    <!-- CRITICAL FIX: Entry point for the React application -->
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
